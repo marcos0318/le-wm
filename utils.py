@@ -1,6 +1,5 @@
 import numpy as np
 import torch
-from pathlib import Path
 from stable_pretraining import data as dt
 from lightning.pytorch.callbacks import Callback
 
@@ -32,33 +31,30 @@ def get_column_normalizer(dataset, source: str, target: str):
     std = data.std(0, keepdim=True).clone()
     return dt.transforms.WrapTorchTransform(ZScoreNormalizer(mean, std), source=source, target=target)
 
-class ModelObjectCallBack(Callback):
-    """Callback to pickle model object after each epoch."""
+class SaveCkptCallback(Callback):
+    """Callback to save model checkpoint after each epoch using save_pretrained."""
 
-    def __init__(self, dirpath, filename="model_object", epoch_interval: int = 1):
+    def __init__(self, run_name, cfg, epoch_interval: int = 1):
         super().__init__()
-        self.dirpath = Path(dirpath)
-        self.filename = filename
+        self.run_name = run_name
+        self.cfg = cfg
         self.epoch_interval = epoch_interval
 
     def on_train_epoch_end(self, trainer, pl_module):
         super().on_train_epoch_end(trainer, pl_module)
 
-        output_path = (
-            self.dirpath
-            / f"{self.filename}_epoch_{trainer.current_epoch + 1}_object.ckpt"
-        )
-
         if trainer.is_global_zero:
             if (trainer.current_epoch + 1) % self.epoch_interval == 0:
-                self._dump_model(pl_module.model, output_path)
+                self._save(pl_module.model, trainer.current_epoch + 1)
 
-            # save final epoch
             if (trainer.current_epoch + 1) == trainer.max_epochs:
-                self._dump_model(pl_module.model, output_path)
+                self._save(pl_module.model, trainer.current_epoch + 1)
 
-    def _dump_model(self, model, path):
-        try:
-            torch.save(model, path)
-        except Exception as e:
-            print(f"Error saving model object: {e}")
+    def _save(self, model, epoch):
+        from stable_worldmodel.wm.utils import save_pretrained
+        save_pretrained(
+            model,
+            run_name=self.run_name,
+            config=self.cfg,
+            filename=f'weights_epoch_{epoch}.pt',
+        )

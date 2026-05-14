@@ -12,7 +12,7 @@ from omegaconf import OmegaConf, open_dict
 
 from jepa import JEPA
 from module import ARPredictor, Embedder, MLP, SIGReg
-from utils import get_column_normalizer, get_img_preprocessor, ModelObjectCallBack
+from utils import get_column_normalizer, get_img_preprocessor, SaveCkptCallback
 
 
 def lejepa_forward(self, batch, stage, cfg):
@@ -150,7 +150,7 @@ def run(cfg):
     ##########################
 
     run_id = cfg.get("subdir") or ""
-    run_dir = Path(swm.data.utils.get_cache_dir(), run_id)
+    run_dir = Path(swm.data.utils.get_cache_dir(sub_folder='checkpoints'), run_id)
 
     logger = None
     if cfg.wandb.enabled:
@@ -161,8 +161,8 @@ def run(cfg):
     with open(run_dir / "config.yaml", "w") as f:
         OmegaConf.save(cfg, f)
 
-    object_dump_callback = ModelObjectCallBack(
-        dirpath=run_dir, filename=cfg.output_model_name, epoch_interval=1,
+    object_dump_callback = SaveCkptCallback(
+        run_name=cfg.output_model_name, cfg=cfg, epoch_interval=1,
     )
 
     trainer = pl.Trainer(
