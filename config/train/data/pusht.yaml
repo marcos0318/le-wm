@@ -1,13 +1,15 @@
 dataset:
   num_steps: ${eval:'${num_preds} + ${history_size}'}
   frameskip: 5
-  name: pusht_expert_train.lance
+  name: pusht_expert_train.h5
   keys_to_load:
     - pixels
     - action
     - proprio
     - state
-  keys_to_cache:
-    - action
-    - proprio
-    - state
+  # Leave empty for large HDF5 — caching full columns loads tens of GB into RAM.
+  keys_to_cache: []
+  # Increase HDF5 raw chunk cache to reduce disk-controller stalls while still
+  # loading samples lazily instead of caching the full 327 GiB pixel column.
+  rdcc_nbytes: 2147483648
+  rdcc_w0: 1.0

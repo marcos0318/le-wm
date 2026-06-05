@@ -85,11 +85,23 @@ def run(cfg: DictConfig):
     policy = cfg.get("policy", "random")
 
     if policy != "random":
-        model = swm.wm.utils.load_pretrained(cfg.policy)
+        policy_path = Path(cfg.policy)
+        object_ckpt = Path(
+            swm.data.utils.get_cache_dir(cfg.cache_dir),
+            policy_path.parent,
+            f"{policy_path.name}_object.ckpt",
+        )
+        if object_ckpt.exists():
+            model = torch.load(object_ckpt, map_location="cpu", weights_only=False)
+        else:
+            model = swm.wm.utils.load_pretrained(cfg.policy)
         model = model.to("cuda")
         model = model.eval()
         model.requires_grad_(False)
-        model.interpolate_pos_encoding = True
+        if hasattr(model, "interpolate_pos_encoding"):
+            model.interpolate_pos_encoding = True
+        elif hasattr(model, "encoder") and hasattr(model.encoder, "config"):
+            model.encoder.config.interpolate_pos_encoding = True
         config = swm.PlanConfig(**cfg.plan_config)
         solver = hydra.utils.instantiate(cfg.solver, model=model)
         policy = swm.policy.WorldModelPolicy(
@@ -148,7 +160,7 @@ def run(cfg: DictConfig):
         eval_budget=cfg.eval.eval_budget,
         episodes_idx=eval_episodes.tolist(),
         callables=OmegaConf.to_container(cfg.eval.get("callables"), resolve=True),
-        video=results_path,
+        video=cfg.eval.get("save_video", None),
     )
     end_time = time.time()
     

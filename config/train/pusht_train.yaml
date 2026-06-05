@@ -1,0 +1,11 @@
+# @package _global_
+# PushT training — matches paper Appendix E (10 epochs).
+defaults:
+  - lewm
+  - _self_
+
+trainer:
+  max_epochs: 10
+
+loader:
+  batch_size: 128
